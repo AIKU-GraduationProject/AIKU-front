@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="kr">
+
+<head>
+    <meta charset="UTF-8">
+    <title> AIKU : Open-Domain 문서봇 </title>
+
+    {% block scripts %}
+        <script>
+        function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = jQuery.trim(cookies[i]);
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        var csrftoken = getCookie('csrftoken');
+
+        var passage = ""
+
+        function sendAsk() {
+            chattext = document.getElementById("chattext").value;
+            if(chattext == "") {
+                document.getElementById("chattext").focus();
+                return false;
+            }
+
+            addtext = "<div style='margin:15px 0;text-align:right;'> <span style='padding:3px 10px;background-color:#3388cc;border-radius:3px;'>" + chattext + "</span></div>";
+            document.getElementById("chatbox").innerHTML += addtext;
+
+            var strurl = "chatanswer?questext=" + chattext;
+            //alert(strurl);
+            //return false;
+
+            xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState == 4) {
+                    var data = xhr.responseText;
+
+                    var obj = JSON.parse(data);
+
+                    if(obj.flag == "0"){
+
+                        bottext = "<div style='margin:15px 0;text-align:left;'><span style='padding:3px 10px;background-color:#DDD;border-radius:3px;'>" + obj.anstext + "</span></div>";
+                        // bottext = "<div style='margin:20px 0;text-align:left;'><span style='padding:5px 15px;background-color:#ffeb33;border-radius:5px;'>" + obj.anstext + "</span></div>";
+                        document.getElementById("chatbox").innerHTML += bottext;
+
+                        var objDiv = document.getElementById("chatbox");
+                        objDiv.scrollTop = objDiv.scrollHeight;
+
+                        document.getElementById("chattext").value = "";
+                        document.getElementById("chattext").focus();
+
+                    }
+                }
+            };
+            xhr.open("GET", strurl);
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            xhr.send(null);
+        }
+
+        let clicked_btn_id = '';
+
+        function change_btn_color(before, after) {
+            let new_clicked_btn = document.getElementById('Text' + after);
+            new_clicked_btn.setAttribute('style', 'background-color: orange');
+
+            if (clicked_btn_id){
+                let before_clicked_btn = document.getElementById('Text' + before);
+                before_clicked_btn.setAttribute('style', 'background-color: gray');
+            }
+
+            clicked_btn_id = after;
+        }
+
+        function set_passage(btn_id) {
+            let selected_passage = document.getElementById("Text" + btn_id).value;
+            if(selected_passage == "") {
+                document.getElementById("Text" + btn_id).focus();
+                return false;
+            }
+            passage=selected_passage
+
+            document.getElementById('TextBox').innerHTML = passage;
+            change_btn_color(clicked_btn_id, btn_id);
+        }
+
+        function get_relevant_doc() {
+            searchtext = document.getElementById("searchtext").value;
+            if(searchtext == "") {
+                document.getElementById("searchtext").focus();
+                return false;
+            }
+
+            fetch('/get_passage', {
+                    method: 'POST', // or 'PUT'
+                    body: JSON.stringify(searchtext), // data can be `string` or {object}!
+                    headers:{
+                        'Content-Type': 'application/json'
+                    }
+                }).then(res => res.json())
+                .then(response => {
+                    document.getElementById("Text1").value = response['1 passage']
+                    document.getElementById("Text2").value = response['2 passage']
+                    document.getElementById("Text3").value = response['3 passage']
+                    document.getElementById("Text4").value = response['4 passage']
+                    document.getElementById("Text5").value = response['5 passage']
+                    set_passage(1)
+                })
+                .catch(error => console.error('Error:', error));
+
+        }
+
+        function conversation() {
+            query = document.getElementById("chattext").value;
+            // passage = document.getElementById("searchtext").value;
+            // print(query)
+            if(query == "") {
+                document.getElementById("chattext").focus();
+                return false;
+            }
+	        addtext = "<div style='margin-right:10px;margin-top:10px; 0;text-align:right;'> <span style='padding:5px 15px;background-color:#ffeb33;border-radius:3px;'>" + query + "</span></div>";
+                        // bottext = "<div style='margin:20px 0;text-align:left;'><span style='padding:5px 15px;background-color:#ffeb33;border-radius:5px;'>" + obj.anstext + "</span></div>";
+
+            document.getElementById("chattings").innerHTML += addtext;
+
+            fetch('/conversation', {
+                    method: 'POST', // or 'PUT'
+                    body: JSON.stringify({'query': query, 'passage': passage}), // data can be `string` or {object}!
+                    headers:{
+                        'Content-Type': 'application/json'
+                    }
+                }).then(res => res.json())
+                .then(response => {
+                    //print(response)
+                    answer = response['answer']
+                    // // context = response['context']
+                    addtext = "<div style='margin-left:10px;margin-top:10px; 0;text-align:left;'> <span style='padding:5px 15px;background-color:#ffeb33;border-radius:3px;'>" + answer + "</span></div>";
+            	    document.getElementById("chattings").innerHTML += addtext;
+
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        </script>
+    {% endblock %}
+    <style>
+
+    @font-face {
+        font-family: 'NanumGothic';
+        src: url(Desktop/merge/templates/NANUMBARUNGOTHIC.TTF) format('truetype');
+    }
+
+    body {
+        font-family: NanumGothic;
+    }
+
+    .input_box{
+        margin-top: 6px;
+        margin-left: 2px;
+        font-size: 30px;
+        width: 80%;
+        height: 40px;
+        border: 0px;
+        outline: none;
+        float: left;
+    }
+    .search_button{
+        width: 17%;
+        height: 40px;
+        border: 0px;
+        margin-right: 2px;
+        margin-top: 6px;
+        background: #036b40;
+        outline: none;
+        float: right;
+        color: #ffffff;
+    }
+    .chat {
+        display: flex;
+        justify-content: center;
+        height: 10%;
+        width: 100%;
+        background-color: #BBCCDD;
+        border: 1px solid #000000;
+        overflow-y: scroll;
+        overflow-x: hidden;
+        float: left;
+    }
+    .chatbox{
+        height:100%;
+        width: 49%;
+        background-color:#BBCCDD;
+        border: 1px solid #000000;
+        /*overflow-y:scroll;*/
+        /*overflow-x:hidden;*/
+        float:left;
+    }
+    .chattings{
+        height:700px;
+        width: 100%;
+        background-color:#BBCCDD;
+        border: 1px solid #000000;
+        overflow-y:scroll;
+        overflow-x:hidden;
+    }
+    .MRCbox{
+        height:100%;
+        width: 50%;
+        background-color: #CCC;
+        border: 1px solid #000000;
+        float:right;
+    }
+    .textbox{
+        display: flex;
+        justify-content: center;
+        height:647px;
+        margin-top:20px;
+        width: 100%;
+        background-color: #BBBBBB;
+        float:right;
+        overflow-y:scroll;
+    }
+    .tempbox{
+        height:60px;
+        width: 100%;
+        background-color: #BBBBBB;
+        float:right;
+    }
+    .t1_btn{
+        margin-top : 3%;
+        width: 20%;
+        height: 100%;
+        border: 0px;
+        background: #808080;
+        outline: none;
+        float: right;
+        color: #ffffff;
+    }
+    .t2_btn{
+        margin-top : 3%;
+        width: 20%;
+        height: 100%;
+        border: 0px;
+        background: #808080;
+        outline: none;
+        float: right;
+        color: #ffffff;
+    }
+    .t3_btn{
+        margin-top : 3%;
+        width: 20%;
+        height: 100%;
+        border: 0px;
+        background: #808080;
+        outline: none;
+        float: right;
+        color: #ffffff;
+    }
+    .t4_btn{
+        margin-top : 3%;
+        width: 20%;
+        height: 100%;
+        border: 0px;
+        background: #808080;
+        outline: none;
+        float: right;
+        color: #ffffff;
+    }
+    .t5_btn{
+        margin-top : 3%;
+        width: 20%;
+        height: 100%;
+        border: 0px;
+        background: #808080;
+        outline: none;
+        float: right;
+        color: #ffffff;
+    }
+    </style>
+
+</head>
+
+<body style="background-color:#BBCCDD;">
+    <div style="padding-top:10px;padding-bottom:10px;height:100%;margin-bottom:10px;background-color:#036b40;color:white">
+        <div class="chatheader">
+        <table width="100%" border="0">
+            <tr>
+            <td width="100%" align="center" style="font-size:30px;">
+               	  AIKU - Open-Domain 문서봇 : 2021 건국대학교 졸업프로젝트                  
+            </td>
+            </tr>
+        </table>
+        </div>
+    </div>
+    <div id="chatbox"; class="chatbox">
+        <div id="chattings"; class="chattings"></div>
+        <div id="chat"; class="chat">
+            <table width="100%"; style="align-content: center">
+        	<tbody>
+			<tr>
+            			<td width="90%";>
+                			<input id="chattext" style="width:100%;height:50px; border:solid 0px #FFF;">
+            			</td>
+            			<td width="10%"><button style="width:100%;height:50px;background-color:#ffeb33;" onclick="conversation()" id="sendbtn">전송</button></td>
+            		</tr>
+		    </tbody>
+            </table>
+        </div>
+    </div>
+    <div id="MRCbox"; class="MRCbox">
+        <div id="tempBox"; class="tempbox">
+            <input id="searchtext" class="input_box"; type="text" placeholder="문서 검색">
+            <button id="searchbtn" class="search_button"; onclick="get_relevant_doc()">검색</button>
+        </div>
+        <table>
+            <tr>
+                <button id="Text5" class="t1_btn" onclick="set_passage(5)">문서 5</button>
+                <button id="Text4" class="t2_btn" onclick="set_passage(4)">문서 4</button>
+                <button id="Text3" class="t3_btn" onclick="set_passage(3)">문서 3</button>
+                <button id="Text2" class="t4_btn" onclick="set_passage(2)">문서 2</button>
+                <button id="Text1" class="t5_btn" onclick="set_passage(1)">문서 1</button>
+            </tr>
+        </table>
+        <div id="TextBox"; class="textbox";></div>
+    </div>
+
+</body>
+</html>
+
+<script>
+
+var input = document.getElementById("chattext");
+
+input.addEventListener("keyup", function(event) {
+  if (event.keyCode === 13) {
+	document.getElementById("sendbtn").click();
+	input.value = null;
+  }
+});
+
+var input2 = document.getElementById("searchtext");
+
+input2.addEventListener("keyup", function(event) {
+  if (event.keyCode === 13) {
+	  document.getElementById("searchbtn").click();
+	  input2.value = null;
+  }
+
+});
+
+</script>
+
